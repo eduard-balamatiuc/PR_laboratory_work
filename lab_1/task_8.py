@@ -140,14 +140,34 @@ def to_json(data):
     return json.dumps(data)
 
 def to_xml(data):
-    xml = "<data>"
-    for key, value in data.items():
-        xml += f"<{key}>"
-        if isinstance(value, dict):
-            xml += to_xml(value)
-        else:
-            xml += str(value)
-        xml += f"</{key}>"
+    """Convert dictionary to XML format with proper structure"""
+    def dict_to_xml(d):
+        xml_str = ""
+        for key, value in d.items():
+            if isinstance(value, dict):
+                # For nested dictionaries, use key as wrapper tag
+                if key == "products":
+                    # Special handling for products to create proper structure
+                    xml_str += f"<{key}>"
+                    for product_id, product_data in value.items():
+                        xml_str += f"<product id='{product_id}'>"
+                        xml_str += dict_to_xml(product_data)
+                        xml_str += "</product>"
+                    xml_str += f"</{key}>"
+                else:
+                    xml_str += f"<{key}>"
+                    xml_str += dict_to_xml(value)
+                    xml_str += f"</{key}>"
+            elif isinstance(value, (int, float)):
+                xml_str += f"<{key}>{value}</{key}>"
+            else:
+                # Handle strings and other types
+                xml_str += f"<{key}>{str(value)}</{key}>"
+        return xml_str
+
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += "<data>"
+    xml += dict_to_xml(data)
     xml += "</data>"
     return xml
 
