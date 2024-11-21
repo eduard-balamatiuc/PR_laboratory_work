@@ -1,15 +1,11 @@
-version: "3.8"
-
 services:
   postgres-db:
     image: postgres:15
     container_name: postgres-container-custom
     ports:
       - "5433:5432"
-    environment:
-      POSTGRES_USER: coderpad
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: coderpad
+    env_file:
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/postgres_data
 
