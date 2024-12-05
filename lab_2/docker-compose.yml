@@ -1,13 +1,33 @@
 services:
   postgres-db:
-    image: postgres:15
+    image: postgres:latest
     container_name: postgres-container-custom
     ports:
-      - "5433:5432"
+      - "5432:5432"
     env_file:
       - .env
     volumes:
       - postgres_data:/var/lib/postgresql/postgres_data
+    networks:
+      - app-network
+
+  api:
+    build: .
+    container_name: fastapi-app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres-db
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+    command: uvicorn main:app --host 0.0.0.0 --reload
+
+networks:
+  app-network:
 
 volumes:
   postgres_data:
