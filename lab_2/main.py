@@ -1,13 +1,21 @@
+import asyncio
 import json
+import uvicorn
 
-from fastapi import FastAPI, HTTPException, Query, UploadFile, File
+from chat import ChatRoom
 from db import session_local
 from db.models import Product
 from db.base import Base, engine
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ValidationError
+from threading import Thread
 
 
 app = FastAPI()
+chat_app = FastAPI()
+chat_manager = ChatRoom()
 
 
 @app.on_event("startup")
@@ -19,6 +27,14 @@ class ProductCreate(BaseModel):
     name: str
     price: float
     specifications: str | None = None
+
+
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+async def get_chat_page():
+    return FileResponse("static/index.html")
 
 
 @app.post("/products/")
@@ -114,3 +130,36 @@ def delete_product(
         session.delete(product)
         session.commit()
         return {"message": "Product deleted"}
+
+
+@chat_app.websocket("/ws/{room_id}")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    room_id: str,
+):
+    try:
+        await chat_manager.join_room(room_id, websocket)
+        while True:
+            message = await websocket.receive_text()
+            await chat_manager.broadcast_message(room_id, message, websocket)
+    except WebSocketDisconnect:
+        chat_manager.remove_client(room_id, websocket)
+
+
+def run_http_server():
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+def run_websocket_server():
+    uvicorn.run(chat_app, host="0.0.0.0", port=8001)
+
+
+if __name__ == "__main__":
+    http_thread = Thread(target=run_http_server)
+    ws_thread = Thread(target=run_websocket_server)
+    
+    http_thread.start()
+    ws_thread.start()
+    
+    http_thread.join()
+    ws_thread.join()
