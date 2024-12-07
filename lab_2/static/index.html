@@ -26,6 +26,12 @@
         button {
             padding: 5px 15px;
         }
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+        }
     </style>
 </head>
 <body>
@@ -45,6 +51,12 @@
 
     <script>
         let ws = null;
+        let currentRoom = null;
+
+        function clearMessages() {
+            const messages = document.getElementById('messages');
+            messages.innerHTML = '';
+        }
 
         function joinRoom() {
             const roomId = document.getElementById('room-id').value;
@@ -55,17 +67,22 @@
                 return;
             }
 
+            // Clear messages when joining new room
+            clearMessages();
+
             // Close existing connection if any
             if (ws) {
                 ws.close();
             }
+
+            currentRoom = roomId;
 
             // Connect to WebSocket server
             ws = new WebSocket(`ws://localhost:8001/ws/${roomId}`);
 
             ws.onmessage = function(event) {
                 const messages = document.getElementById('messages');
-                messages.innerHTML += `<div>${event.data}</div>`;
+                messages.innerHTML += `<div class="message">${event.data}</div>`;
                 messages.scrollTop = messages.scrollHeight;
             };
 
@@ -77,11 +94,14 @@
 
             ws.onclose = function() {
                 console.log('Disconnected from room');
+                if (currentRoom === roomId) {
+                    currentRoom = null;
+                }
             };
         }
 
         function sendMessage() {
-            if (!ws) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
                 alert('Please join a room first');
                 return;
             }
@@ -94,7 +114,7 @@
                 ws.send(`${username}: ${message}`);
                 // Add own message to chat
                 const messages = document.getElementById('messages');
-                messages.innerHTML += `<div>${username}: ${message}</div>`;
+                messages.innerHTML += `<div class="message">${username}: ${message}</div>`;
                 messages.scrollTop = messages.scrollHeight;
                 messageInput.value = '';
             }
