@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from db import session_local
 from db.models import Product
 from db.base import Base, engine
@@ -29,6 +29,16 @@ def create_product(
         session.commit()
         return db_product
     
+
+@app.get("/products/")
+def get_products(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+):
+    with session_local() as session:
+        products = session.query(Product).offset(offset).limit(limit).all()
+        return {"items": products, "offset": offset, "limit":limit}
+
 
 @app.get("/products/{product_id}")
 def get_product(
