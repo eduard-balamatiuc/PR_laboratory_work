@@ -1,8 +1,10 @@
-from fastapi import FastAPI, HTTPException, Query
+import json
+
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from db import session_local
 from db.models import Product
 from db.base import Base, engine
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 
 app = FastAPI()
@@ -28,7 +30,40 @@ def create_product(
         session.add(db_product)
         session.commit()
         return db_product
-    
+
+
+@app.post("/products/import")
+async def upload_products(file: UploadFile = File(...)):
+    if file.content_type != "application/json":
+        raise HTTPException(status_code=400, detail="Only JSON files are allowed")
+
+    contents = await file.read()
+
+    try:
+        data = json.loads(contents.decode("utf-8"))
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    if not isinstance(data, list):
+        raise HTTPException(status_code=400, detail="Expected a list of products")
+
+    products_to_add = []
+    for item in data:
+        try:
+            product = ProductCreate(**item)
+            products_to_add.append(product)
+        except ValidationError as e:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid product data: {e.errors()}"
+            )
+
+    with session_local() as session:
+        db_products = [Product(**product.model_dump()) for product in products_to_add]
+        session.add_all(db_products)
+        session.commit()
+
+    return {"message": f"Successfully added {len(products_to_add)} products."}
+
 
 @app.get("/products/")
 def get_products(
@@ -37,7 +72,7 @@ def get_products(
 ):
     with session_local() as session:
         products = session.query(Product).offset(offset).limit(limit).all()
-        return {"items": products, "offset": offset, "limit":limit}
+        return {"items": products, "offset": offset, "limit": limit}
 
 
 @app.get("/products/{product_id}")
@@ -49,7 +84,7 @@ def get_product(
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
         return product
-    
+
 
 @app.put("/products/{product_id}")
 def update_product(
@@ -66,7 +101,6 @@ def update_product(
             setattr(db_product, key, value)
         session.commit()
         return db_product
-    
 
 
 @app.delete("/products/{product_id}")
