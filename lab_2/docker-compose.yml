@@ -28,6 +28,15 @@ services:
       - app-network
     command: python main.py
 
+  tcp-server:
+    build: .
+    container_name: tcp-server
+    ports:
+      - "9000:9000"
+    networks:
+      - app-network
+    command: python tcp_server.py
+
 networks:
   app-network:
 
