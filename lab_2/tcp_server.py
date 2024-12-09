@@ -10,14 +10,13 @@ class FileManager:
         self.write_count = 0
         self.write_count_lock = threading.Lock()
         self.no_writers = threading.Event()
-        self.no_writers.set()  # Initially no writers
+        self.no_writers.set()
         self.file_path = "shared_file.txt"
 
     def write_to_file(self, data):
-        # Indicate a writer is starting
         with self.write_count_lock:
             self.write_count += 1
-            self.no_writers.clear()  # Block new readers
+            self.no_writers.clear()
 
         try:
             time.sleep(random.randint(1, 7))
@@ -25,14 +24,12 @@ class FileManager:
                 with open(self.file_path, 'a') as f:
                     f.write(f"{data}\n")
         finally:
-            # Indicate a writer is done
             with self.write_count_lock:
                 self.write_count -= 1
                 if self.write_count == 0:
-                    self.no_writers.set()  # Allow readers
+                    self.no_writers.set()
 
     def read_from_file(self):
-        # Wait for all writers to complete
         self.no_writers.wait()
         
         time.sleep(random.randint(1, 7))
