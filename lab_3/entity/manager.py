@@ -1,4 +1,3 @@
-# enhanced_manager.py
 import threading
 import time
 from ftplib import FTP
@@ -24,7 +23,8 @@ class FTPPoller(threading.Thread):
 
     @property
     def web_server_url(self):
-        return f'http://localhost:{self.manager.raft_port}/upload/'
+        return f'http://localhost:{self.manager.raft_port}/products/import'
+
 
     def download_and_process_file(self):
         try:
@@ -91,11 +91,10 @@ class ProductManager:
             product = json.loads(body)
             print(self.raft_port)
             # Send to web server
-            time.
             response = requests.post(
                 f'http://localhost:{self.raft_port}/products/',
                 json=product,
-                timeout=500,
+                timeout=5,
             )
 
             if response.status_code == 200:

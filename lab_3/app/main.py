@@ -40,6 +40,7 @@ def create_product(
         db_product = Product(**product.model_dump())
         session.add(db_product)
         session.commit()
+        session.refresh(db_product)
         return db_product
 
 
@@ -95,16 +96,6 @@ def get_product(
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
         return product
-    
-
-@app.post("/products/", response_model=ProductCreate)
-def create_product(product: ProductCreate):
-    with session_local() as session:
-        db_product = Product(**product.model_dump())
-        session.add(db_product)
-        session.commit()
-        session.refresh(db_product)
-        return db_product
 
 
 @app.put("/products/{product_id}")

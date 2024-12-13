@@ -1,7 +1,7 @@
 from ftplib import FTP
 import json
 import os
-from scraper.scraper import mock_scrape_cactus_phones
+from scraper.scraper import mock_scrape_cactus
 from scraper.processor import process_products
 import time
 
@@ -30,7 +30,7 @@ def process_and_upload_to_ftp(products):
             os.remove(filename)
 
 def scrape_and_process():
-    products = mock_scrape_cactus_phones()
+    products = mock_scrape_cactus()
     process_and_upload_to_ftp(products)
 
 def feed_ftp():
