@@ -1,0 +1,109 @@
+{
+    "products": {
+        "126133": {
+            "name": "Laptop Apple MacBook PRO 16\" MNW93",
+            "price": {
+                "MDL": 63269.0
+            },
+            "specifications": "2023"
+        },
+        "126134": {
+            "name": "Laptop Apple MacBook PRO 16\" MNW83",
+            "price": {
+                "MDL": 48839.0
+            },
+            "specifications": "2023"
+        },
+        "126135": {
+            "name": "Laptop Apple MacBook PRO 14\" MPHE3",
+            "price": {
+                "MDL": 48284.0
+            },
+            "specifications": "2023"
+        },
+        "128486": {
+            "name": "Laptop Apple MacBook PRO 14 MPHG3",
+            "price": {
+                "MDL": 72926.0
+            },
+            "specifications": "2023"
+        },
+        "128504": {
+            "name": "Laptop Apple MacBook PRO 16\" MNWE3",
+            "price": {
+                "MDL": 78809.0
+            },
+            "specifications": "2023"
+        },
+        "128506": {
+            "name": "Laptop Apple MacBook PRO 16 MNWA3",
+            "price": {
+                "MDL": 77477.0
+            },
+            "specifications": "2023"
+        },
+        "128509": {
+            "name": "Laptop Apple MacBook PRO 14 MPHK3",
+            "price": {
+                "MDL": 72926.0
+            },
+            "specifications": "2023"
+        },
+        "134494": {
+            "name": "Laptop Apple MacBook Air 15\" MQKT3",
+            "price": {
+                "MDL": 32633.0
+            },
+            "specifications": "2023"
+        },
+        "134495": {
+            "name": "Laptop Apple MacBook Air 15\" MQKR3",
+            "price": {
+                "MDL": 28304.0
+            },
+            "specifications": "2023"
+        },
+        "134498": {
+            "name": "Laptop Apple MacBook Air 15\" MQKP3",
+            "price": {
+                "MDL": 28359.0
+            },
+            "specifications": "2023"
+        },
+        "134500": {
+            "name": "Laptop Apple MacBook Air 15\" MQKQ3",
+            "price": {
+                "MDL": 32633.0
+            },
+            "specifications": "2023"
+        },
+        "134501": {
+            "name": "Laptop Apple MacBook Air 15\" MQKV3",
+            "price": {
+                "MDL": 32633.0
+            },
+            "specifications": "2023"
+        },
+        "134503": {
+            "name": "Laptop Apple MacBook Air 15\" MQKU3",
+            "price": {
+                "MDL": 27749.0
+            },
+            "specifications": "2023"
+        },
+        "134504": {
+            "name": "Laptop Apple MacBook Air 15\" MQKX3",
+            "price": {
+                "MDL": 31745.0
+            },
+            "specifications": "2023"
+        },
+        "134505": {
+            "name": "Laptop Apple MacBook Air 15\" MQKW3",
+            "price": {
+                "MDL": 27749.0
+            },
+            "specifications": "2023"
+        }
+    }
+}
