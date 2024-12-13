@@ -26,6 +26,7 @@ chat_app = FastAPI()
 
 
 class ProductCreate(BaseModel):
+    id: int
     name: str
     price: float
     specifications: str | None = None
@@ -96,7 +97,7 @@ def get_product(
         return product
     
 
-@app.post("/products/", response_model=Product)
+@app.post("/products/", response_model=ProductCreate)
 def create_product(product: ProductCreate):
     with session_local() as session:
         db_product = Product(**product.model_dump())
