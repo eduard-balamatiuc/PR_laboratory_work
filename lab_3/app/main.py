@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ValidationError
 from threading import Thread
+from raft.raft import RaftNode
 
 
 app = FastAPI()
@@ -126,9 +127,24 @@ def run_http_server():
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
+def run_raft_node(port, peers):
+    node = RaftNode(port, peers)
+    node.start()
+
 if __name__ == "__main__":
+    # Example configuration for three servers
+    server_ports = [8001, 8002, 8003]
+    server_id = int(input("Enter server ID (0-2): "))
+    port = server_ports[server_id]
+    peers = [p for p in server_ports if p != port]
+
+    # Start RAFT node
+    raft_thread = Thread(target=run_raft_node, args=(port, peers))
+    raft_thread.start()
+
+    # Start HTTP server
     http_thread = Thread(target=run_http_server)
-    
     http_thread.start()
-    
+
+    raft_thread.join()
     http_thread.join()
