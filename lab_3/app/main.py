@@ -1,25 +1,28 @@
-import asyncio
 import json
 import uvicorn
+import os
+from raft.raft import RaftServer
+import threading
+
+raft_server = None
+
+
 
 from db import session_local
 from db.models import Product
 from db.base import Base, engine
-from fastapi import FastAPI, HTTPException, Query, UploadFile, File, WebSocket, WebSocketDisconnect
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Query,
+    UploadFile,
+    File,
+)
 from pydantic import BaseModel, ValidationError
-from threading import Thread
-from raft.raft import RaftNode
 
 
 app = FastAPI()
 chat_app = FastAPI()
-
-
-@app.on_event("startup")
-async def startup():
-    Base.metadata.create_all(bind=engine)
 
 
 class ProductCreate(BaseModel):
@@ -123,28 +126,34 @@ def delete_product(
         return {"message": "Product deleted"}
 
 
-def run_http_server():
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+def run_http_server(port: int):
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 
-def run_raft_node(port, peers):
-    node = RaftNode(port, peers)
-    node.start()
+@app.on_event("startup")
+async def startup_event():
+    Base.metadata.create_all(bind=engine)
+    global raft_server
+    server_id = int(os.environ.get("SERVER_ID", 1))
+    port = int(os.environ.get("PORT", 5000))
+    peers_str = os.environ.get("PEERS", "")
+    peers = [int(p) for p in peers_str.split(",")] if peers_str else []
+
+    manager_url = os.environ.get("MANAGER_URL", "http://localhost:8080")
+
+    print(f"Starting server {server_id} on port {port}")
+    print(f"Peers: {peers}")
+
+    raft_server = RaftServer(server_id, port, peers, manager_url)
+
+
+port = int(os.environ.get("PORT", 5000))
+config = uvicorn.Config(app, host="0.0.0.0", port=port, loop="asyncio")
+server = uvicorn.Server(config)
 
 if __name__ == "__main__":
-    # Example configuration for three servers
-    server_ports = [8001, 8002, 8003]
-    server_id = int(input("Enter server ID (0-2): "))
-    port = server_ports[server_id]
-    peers = [p for p in server_ports if p != port]
+    uvicorn_thread = threading.Thread(target=server.run)
 
-    # Start RAFT node
-    raft_thread = Thread(target=run_raft_node, args=(port, peers))
-    raft_thread.start()
+    uvicorn_thread.start()
 
-    # Start HTTP server
-    http_thread = Thread(target=run_http_server)
-    http_thread.start()
-
-    raft_thread.join()
-    http_thread.join()
+    uvicorn_thread.join()

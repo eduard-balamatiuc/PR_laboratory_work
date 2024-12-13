@@ -1,110 +1,185 @@
-import asyncio
+import threading
 import socket
 import random
 import time
+import requests
 from enum import Enum
-from threading import Thread
+import json
 
 class ServerState(Enum):
     FOLLOWER = 1
     CANDIDATE = 2
     LEADER = 3
 
-class RaftNode:
-    def __init__(self, port, peers):
+class RaftServer:
+    def __init__(self, server_id, port, peers, manager_url):
+        self.server_id = server_id
         self.port = port
         self.peers = peers
+        self.manager_url = manager_url
         self.state = ServerState.FOLLOWER
         self.current_term = 0
         self.voted_for = None
-        self.votes_received = 0
         self.leader_id = None
-        self.election_timeout = random.uniform(150, 300) / 1000  # 150-300ms
         self.last_heartbeat = time.time()
-        
-        # UDP socket setup
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(('localhost', port))
+        self.election_timeout = random.uniform(150, 300) / 1000
+        self.last_heartbeat_times = {peer: 0 for peer in peers}
+        self.heartbeat_timeout = 0.3
+        self.active_peers = set(peers)
+        self.votes_received = 0
 
-    def start(self):
-        Thread(target=self.receive_messages).start()
-        Thread(target=self.election_timer).start()
+        self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_socket.bind(('localhost', port))
 
-    def receive_messages(self):
+        self.election_timer = threading.Thread(target=self.run_election_timer)
+        self.election_timer.daemon = True
+        self.election_timer.start()
+
+        self.udp_listener = threading.Thread(target=self.listen_udp)
+        self.udp_listener.daemon = True
+        self.udp_listener.start()
+
+
+        self.heartbeat_checker = threading.Thread(target=self.check_heartbeats)
+        self.heartbeat_checker.daemon = True
+        self.heartbeat_checker.start()
+
+    def run_election_timer(self):
         while True:
-            data, addr = self.sock.recvfrom(1024)
-            message = data.decode()
-            self.handle_message(message, addr)
+            if self.state != ServerState.LEADER:
+                if time.time() - self.last_heartbeat > self.election_timeout:
+                    self.start_election()
+            time.sleep(0.05)
 
-    def handle_message(self, message, addr):
-        msg_parts = message.split(':')
-        msg_type = msg_parts[0]
-        term = int(msg_parts[1])
-
-        if term > self.current_term:
-            self.current_term = term
-            self.state = ServerState.FOLLOWER
-            self.voted_for = None
-
-        if msg_type == 'REQUEST_VOTE':
-            self.handle_vote_request(term, addr)
-        elif msg_type == 'VOTE_RESPONSE':
-            self.handle_vote_response(term)
-        elif msg_type == 'HEARTBEAT':
-            self.handle_heartbeat(term, addr)
-
-    def handle_vote_request(self, term, addr):
-        if term >= self.current_term and (self.voted_for is None or self.voted_for == addr):
-            self.voted_for = addr
-            self.send_message(f'VOTE_RESPONSE:{self.current_term}', addr)
-
-    def handle_vote_response(self, term):
-        if self.state == ServerState.CANDIDATE and term == self.current_term:
-            self.votes_received += 1
-            if self.votes_received > len(self.peers) / 2:
-                self.state = ServerState.LEADER
-                self.leader_id = self.port
-                self.notify_manager()
-                self.start_heartbeat()
-
-    def handle_heartbeat(self, term, addr):
-        self.last_heartbeat = time.time()
-        if term >= self.current_term:
-            self.state = ServerState.FOLLOWER
-            self.leader_id = addr[1]
-
-    def election_timer(self):
+    def check_heartbeats(self):
+        """Check if peers are alive based on heartbeat timestamps"""
         while True:
-            time.sleep(0.1)  # Check every 100ms
-            if (self.state != ServerState.LEADER and 
-                time.time() - self.last_heartbeat > self.election_timeout):
-                self.start_election()
+            current_time = time.time()
+            if self.state != ServerState.LEADER:  # Only non-leaders check heartbeats
+                for peer in self.peers:
+                    last_time = self.last_heartbeat_times.get(peer, 0)
+                    if current_time - last_time > self.heartbeat_timeout:
+                        if peer in self.active_peers:
+                            self.active_peers.remove(peer)
+                            if peer == self.leader_id:
+                                print(f"Leader {peer} is dead, starting election")
+                                self.start_election()
+                    else:
+                        if peer not in self.active_peers:
+                            self.active_peers.add(peer)
+                            print(f"\nServer {peer} is now active")
+            time.sleep(0.1)
 
     def start_election(self):
+        if self.state == ServerState.LEADER:
+            return
+
         self.state = ServerState.CANDIDATE
         self.current_term += 1
-        self.voted_for = self.port
+        self.voted_for = self.server_id
         self.votes_received = 1
-        
-        for peer in self.peers:
-            self.send_message(f'REQUEST_VOTE:{self.current_term}', ('localhost', peer))
 
-    def send_message(self, message, addr):
-        self.sock.sendto(message.encode(), addr)
+        print(f"Server {self.server_id} starting election for term {self.current_term}")
 
-    def start_heartbeat(self):
-        def send_heartbeats():
-            while self.state == ServerState.LEADER:
-                for peer in self.peers:
-                    self.send_message(f'HEARTBEAT:{self.current_term}', ('localhost', peer))
-                time.sleep(0.05)  # Send heartbeat every 50ms
-        
-        Thread(target=send_heartbeats).start()
+        for peer in self.active_peers:
+            try:
+                message = {
+                    'type': 'REQUEST_VOTE',
+                    'term': self.current_term,
+                    'candidate_id': self.server_id
+                }
+                self.udp_socket.sendto(json.dumps(message).encode(), ('localhost', peer))
+            except Exception as e:
+                print(f"Error sending vote request to peer {peer}: {e}")
 
-    def notify_manager(self):
-        # Implement the logic to notify the manager about the new leader
-        pass
+        time.sleep(self.election_timeout)
 
-def run_raft_node(port, peers):
-    node = RaftNode(port, peers)
-    node.start()
+
+        if self.votes_received > len(self.active_peers) / 2 and self.state == ServerState.CANDIDATE:
+            self.become_leader()
+
+    def become_leader(self):
+        self.state = ServerState.LEADER
+        self.leader_id = self.server_id
+        print(f"Server {self.server_id} became leader for term {self.current_term}")
+
+        try:
+            requests.post(
+                f"{self.manager_url}/update_leader",
+                json={"leader_port": self.port}
+            )
+        except Exception as e:
+            print(f"Error notifying manager: {e}")
+
+
+        self.heartbeat_thread = threading.Thread(target=self.send_heartbeats)
+        self.heartbeat_thread.daemon = True
+        self.heartbeat_thread.start()
+
+    def send_heartbeats(self):
+        while self.state == ServerState.LEADER:
+            message = {
+                'type': 'HEARTBEAT',
+                'term': self.current_term,
+                'leader_id': self.server_id
+            }
+            dead_peers = set()
+
+            for peer in self.peers:
+                try:
+                    self.udp_socket.sendto(json.dumps(message).encode(), ('localhost', peer))
+                except Exception as e:
+                    print(f"Error sending heartbeat to peer {peer}: {e}")
+                    dead_peers.add(peer)
+
+            # Update active peers
+            if dead_peers:
+                self.active_peers = self.active_peers - dead_peers
+                print(f"Active peers updated: {self.active_peers}")
+
+            time.sleep(0.05)
+
+    def listen_udp(self):
+        while True:
+            try:
+                data, addr = self.udp_socket.recvfrom(1024)
+                message = json.loads(data.decode())
+                sender_port = addr[1]
+
+                if message['type'] == 'REQUEST_VOTE':
+                    if message['term'] > self.current_term:
+                        self.current_term = message['term']
+                        self.state = ServerState.FOLLOWER
+                        self.voted_for = message['candidate_id']
+
+                        response = {
+                            'type': 'VOTE',
+                            'term': self.current_term,
+                            'vote_granted': True
+                        }
+                        self.udp_socket.sendto(json.dumps(response).encode(), addr)
+                        print(f"Server {self.server_id} voted for {message['candidate_id']} in term {self.current_term}")
+
+                elif message['type'] == 'VOTE':
+                    if (message['term'] == self.current_term and
+                            self.state == ServerState.CANDIDATE and
+                            message['vote_granted']):
+                        self.votes_received += 1
+                        print(f"Server {self.server_id} received vote. Total votes: {self.votes_received}")
+
+                elif message['type'] == 'HEARTBEAT':
+                    self.last_heartbeat_times[sender_port] = time.time()
+
+                    if message['term'] > self.current_term:
+                        self.current_term = message['term']
+                        self.state = ServerState.FOLLOWER
+                        self.leader_id = message['leader_id']
+                        self.last_heartbeat = time.time()
+                    elif message['term'] == self.current_term:
+                        if self.state != ServerState.FOLLOWER:
+                            self.state = ServerState.FOLLOWER
+                        self.leader_id = message['leader_id']
+                        self.last_heartbeat = time.time()
+
+            except Exception as e:
+                print(f"Error in UDP listener: {e}")
