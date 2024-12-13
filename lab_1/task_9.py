@@ -69,7 +69,7 @@ soup = BeautifulSoup(html_content, 'html.parser')
 products = soup.find_all("div", class_="catalog__pill")
 
 for product in products:
-    title = product.find("h2").text
+    title = product.find("span", class_="catalog__pill__text__title").text
     price_elem = product.find("div", class_="catalog__pill__controls__price")
     if price_elem:
         price = price_elem.text
