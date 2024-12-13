@@ -1,18 +1,13 @@
-from datetime import datetime
-
-
 def process_products(products, min_price_mdl, max_price_mdl):
+    # First, convert 'price' from {"MDL": value} to just a float value
+    for product in products:
+        product["price"] = product["price"]["MDL"]
 
-    filtered_products = list(filter(
-        lambda x: min_price_mdl <= x['price']['MDL'] <= max_price_mdl,
-        products
-    ))
+    # Filter based on the updated price field
+    filtered_products = [
+        p for p in products 
+        if min_price_mdl <= p['price'] <= max_price_mdl
+    ]
 
-    total_price = sum(p['price']['MDL'] for p in filtered_products)
-
-    result = {
-        'timestamp': datetime.utcnow().isoformat(),
-        'products': filtered_products,
-        'total_price': total_price
-    }
-    return result
+    # Return the filtered list of products directly
+    return filtered_products
