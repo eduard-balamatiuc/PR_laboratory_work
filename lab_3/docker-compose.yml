@@ -9,5 +9,29 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/postgres_data
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  ftp_server:
+    image: stilliard/pure-ftpd:hardened
+    container_name: ftp_server
+    ports:
+      - "21:21"
+      - "30000-30009:30000-30009"
+    environment:
+      FTP_USER_NAME: testuser
+      FTP_USER_PASS: testpass
+      FTP_USER_HOME: /home/ftpuser
+    volumes:
+      - ftp_data:/home/ftpuser
+
+  
 volumes:
+  ftp_data:
   postgres_data:
