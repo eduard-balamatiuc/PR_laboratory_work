@@ -330,11 +330,25 @@ def from_custom_serialization(text):
     lines = text.split('\n')
     return parse_structure(lines)[0]
 
+
+def save_to_json(data, filename='results.json'):
+    """Save data to JSON file with proper datetime handling"""
+    class DateTimeEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            return super().default(obj)
+
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(data, f, cls=DateTimeEncoder, ensure_ascii=False, indent=4)
+
 if __name__ == "__main__":
     log.info(f"Data: {data}")
     log.info(f"Data serialized: \n{to_custom_serialization(data)}")
     log.info(f"Data deserialized: {from_custom_serialization(to_custom_serialization(data))}")
     log.info(f"Data serialized to JSON: {to_json(data)}")
     log.info(f"Data serialized to XML: {to_xml(data)}")
+    save_to_json(data)
+    log.info("Results saved to results.json")
 
 
